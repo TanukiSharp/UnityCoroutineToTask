@@ -27,25 +27,26 @@ Thank you Unity for the millions of possibilities in term of extension points.
 
 ## The code
 
-The code you are interested in is located in the file `Assets/MonoBehaviorExtensions.cs`. You need to take the whole `MonoBehaviourExtensions` static class, as the `StartCoroutine<T>` method requires the `TaskEnumerator<T>` private class.
+The code you are interested in is located in the file `Assets/MonoBehaviorExtensions.cs`. You need to take the whole `MonoBehaviourExtensions` static class, as the `StartCoroutine<T>` methods requires the `Interrupt` private class and the `Run<T>` private static method.
 
 Feel free to move it into an appropriate namespace.
 
 ## How it works
 
-The class `MonoBehaviourExtensions` adds a `StartCoroutine<T>` extension method on the `MonoBehaviour` class to start a coroutine, but instead of returning a `Coroutine`, it returns a `Task<T>` that you can await on.
+The class `MonoBehaviourExtensions` adds two `StartCoroutine<T>` extension methods on the `MonoBehaviour` class to start a coroutine, but instead of returning a `Coroutine`, they return a `Task<T>` that you can await on.
 
-Here is the prototype of the method:
+Here is the prototype of the methods:
 
 ```cs
 public static Task<T> StartCoroutine<T>(this MonoBehaviour owner, IEnumerator routine)
+public static Task<T> StartCoroutine<T>(this MonoBehaviour owner, IEnumerator routine, CancellationToken cancellationToken)
 ```
 
-The type `T` is the type of value returned by the last `yield return` statement that is executed by the enumerator method, represented by `routine`.
+The type `T` is the type of value returned by the last `yield return` statement that is executed by the iterator method, represented by `routine`.
 
-It must be provided (the type `T`) to the `StartCoroutine<T>` because this is a return value, therefore the type cannot be inferred by the compiler.
+It must be provided (the type `T`) to the `StartCoroutine<T>` method because this is a return value, therefore the type cannot be inferred by the compiler.
 
-If your enumerator method is defined as follow:
+If your iterator method is defined as follow:
 
 ```cs
 private IEnumerator MyFunc()
@@ -56,18 +57,18 @@ private IEnumerator MyFunc()
 }
 ```
 
-then because the last `yield return` statement executed yields `51`, your method is considered returning an `int`.
+then because the last `yield return` statement executed yields the value `51`, your method is considered returning an `int`.
 
 ## How to use
 
-If you are using a too old version of the C# language and the extensions method are not supported, simply remove the `this` keyword in front of `MonoBehavior owner`, then you will call it differently.
+If you are using a too old version of the C# language and the extension methods are not supported, simply remove the `this` keyword in front of `MonoBehavior owner`, then you will call them differently (explained later).
 
-To call it, first get any instance of `MonoBehaviour`, and now there should be a new method named `StartCoroutine<T>` that takes an `IEnumerator` like the Unity one, but that returns a `Task<T>`.
+To call them, first get any instance of `MonoBehaviour`, and now there should be two new methods named `StartCoroutine<T>` that take an `IEnumerator` like the Unity one, but that return a `Task<T>`.
 
-Call it like this:
+Call them like this:
 
 ```cs
-// Your legacy enumerator method.
+// Your legacy iterator method.
 private IEnumerator MyFunc()
 {
     yield return 51;
@@ -76,20 +77,28 @@ private IEnumerator MyFunc()
 async Task SomeAsyncMethod()
 {
     int result = await someMonoBehavior.StartCoroutine<int>(MyFunc());
+
+    // or
+
+    int result = await someMonoBehavior.StartCoroutine<int>(MyFunc(), existingCancellationToken);
 }
 ```
 
-If you needed to remove the `this` keyword because you are using a too old C# language version, call it like this:
+If you needed to remove the `this` keyword because you are using a too old C# language version, call them like this:
 
 ```cs
 int result = await MonoBehaviourExtensions.StartCoroutine<int>(someMonoBehavior, MyFunc());
+
+// or
+
+int result = await MonoBehaviourExtensions.StartCoroutine<int>(someMonoBehavior, MyFunc(), existingCancellationToken);
 ```
 
 ## Important notes
 
 ### Not sure of the return type
 
-In case you are not sure what type your enumerator returns, or if it can return many different types, or if you do not care, you can simply use `object` as `T`, in this case you will never encounter cast exception.
+In case you are not sure what type your iterator method returns, or if it can return many different types, or if you do not care, you can simply use `object` as `T`, in this case you will never encounter cast exception.
 
 ```cs
 var didntReadLol = await someMonoBehavior.StartCoroutine<object>(MyFunc());
@@ -117,7 +126,7 @@ int MyFunc(bool earlyBreak)
 }
 ```
 
-In an enumerator method, you early break with a `yield break` statement, but beware of that, since the `StartCoroutine<T>` method will return a task containing the last yielded value, therefore in the following code:
+In an iterator method, you early break with a `yield break` statement, but beware of that, since the `StartCoroutine<T>` method will return a task containing the last yielded value, therefore in the following code:
 
 ```cs
 IEnumerator MyFunc(bool earlyBreak)
@@ -128,7 +137,7 @@ IEnumerator MyFunc(bool earlyBreak)
 
     if (earlyBreak)
     {
-        yield break; // This is how you interrupt an enumerator method.
+        yield break; // This is how you interrupt an iterator method.
     }
 
     DoSomethingElse();
@@ -137,7 +146,7 @@ IEnumerator MyFunc(bool earlyBreak)
 }
 ```
 
-the last yielded value is of type `WaitForSeconds`, and so calling `MyFunc` with `StartCoroutine<int>` will end up in a cast exception (Cannot cast `WaitForSeconds` to `int`).
+the last yielded value is of type `WaitForSeconds`, and so calling `MyFunc` with `StartCoroutine<int>` will end up in a cast exception (cannot cast `WaitForSeconds` to `int`).
 
 To fix this issue, here is what you have to do then:
 
@@ -150,7 +159,7 @@ IEnumerator MyFunc(bool earlyBreak)
 
     if (earlyBreak)
     {
-        yield return 32; // Here we explicitly yield 32 before interrupting the enumerator method.
+        yield return 32; // Here we explicitly yield 32 before interrupting the iterator method.
         yield break;
     }
 
@@ -162,6 +171,8 @@ IEnumerator MyFunc(bool earlyBreak)
 
 ## Disclaimer
 
-This is probably not the only way to achieve this goal (hiding the old `yield` behind the new `async`/`await`), and might also not be the best way.
+This is probably not the only way to achieve this goal (hiding the old `yield` behind the new `async`/`await`), and there is no pretension in being the best way either.
 
-Here, each call to `StartCoroutine<T>` will incur an allocation of a `TaskEnumerator` and a `TaskCompletionSource<T>` instances, as well as the `Task<T>` that comes along.
+Here, each call to `StartCoroutine<T>` will incur an allocation of an `Interrupt` class and a `TaskCompletionSource<T>` instances, as well as the `Task<T>` that comes along.
+
+This way however, exceptions thrown in nested sub coroutine is correctly handled, and support for cancellation via `CancellationToken` can be a great win in some situations.
