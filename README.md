@@ -38,8 +38,8 @@ The class `MonoBehaviourExtensions` adds two `StartCoroutine<T>` extension metho
 Here is the prototype of the methods:
 
 ```cs
-public static Task<T> StartCoroutine<T>(this MonoBehaviour owner, IEnumerator routine)
-public static Task<T> StartCoroutine<T>(this MonoBehaviour owner, IEnumerator routine, CancellationToken cancellationToken)
+public static Task<T> StartCoroutine<T>(this MonoBehaviour owner, IEnumerator routine);
+public static Task<T> StartCoroutine<T>(this MonoBehaviour owner, IEnumerator routine, CancellationToken cancellationToken);
 ```
 
 The type `T` is the type of value returned by the last `yield return` statement that is executed by the iterator method, represented by `routine`.
